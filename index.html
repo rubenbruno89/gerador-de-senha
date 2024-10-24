@@ -1,0 +1,348 @@
+<html><head><base href="/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerador de Senhas para Impressora Térmica</title>
+<style>
+:root {
+    --primary: #2a2f4c;
+    --secondary: #4CAF50;
+}
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, var(--primary), #1a1f3c);
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+}
+
+.container {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    max-width: 400px;
+    width: 90%;
+}
+
+h1 {
+    text-align: center;
+    color: var(--secondary);
+    margin-bottom: 1.5rem;
+}
+
+.password-display {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 1rem;
+    border-radius: 5px;
+    margin-bottom: 1rem;
+    font-family: monospace;
+    font-size: 1.2rem;
+    position: relative;
+}
+
+.options {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+button {
+    background: var(--secondary);
+    color: white;
+    border: none;
+    padding: 0.8rem;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 1rem;
+    transition: transform 0.2s;
+    margin-bottom: 0.5rem;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    background: #45a049;
+}
+
+#length {
+    width: 60px;
+    padding: 0.3rem;
+    margin-left: 0.5rem;
+}
+
+.print-preview {
+    background: white;
+    color: black;
+    padding: 1rem;
+    border-radius: 5px;
+    margin-top: 1rem;
+    font-family: monospace;
+    display: none;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .print-preview, .print-preview * {
+        visibility: visible;
+    }
+    .print-preview {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+}
+</style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gerador de Senhas</h1>
+        <div class="password-display" id="password">
+            Clique em Gerar!
+        </div>
+        
+        <div class="options">
+            <div class="option">
+                <label>Quantidade de senhas: </label>
+                <input type="number" id="quantity" min="1" max="50" value="1">
+            </div>
+            <div class="option">
+                <label>Comprimento: </label>
+                <input type="number" id="length" min="4" max="50" value="12">
+            </div>
+            <div class="option">
+                <input type="checkbox" id="uppercase" checked>
+                <label for="uppercase">Letras Maiúsculas</label>
+            </div>
+            <div class="option">
+                <input type="checkbox" id="lowercase" checked>
+                <label for="lowercase">Letras Minúsculas</label>
+            </div>
+            <div class="option">
+                <input type="checkbox" id="numbers" checked>
+                <label for="numbers">Números</label>
+            </div>
+            <div class="option">
+                <input type="checkbox" id="symbols">
+                <label for="symbols">Símbolos</label>
+            </div>
+        </div>
+
+        <button id="generateBtn">Gerar Senhas</button>
+        <button id="printBtn">Imprimir Senhas</button>
+
+        <div class="print-preview" id="printPreview"></div>
+    </div>
+
+<script>
+const passwordDisplay = document.getElementById('password');
+const printPreview = document.getElementById('printPreview');
+const lengthEl = document.getElementById('length');
+const quantityEl = document.getElementById('quantity');
+const uppercaseEl = document.getElementById('uppercase');
+const lowercaseEl = document.getElementById('lowercase');
+const numbersEl = document.getElementById('numbers');
+const symbolsEl = document.getElementById('symbols');
+const generateBtn = document.getElementById('generateBtn');
+const printBtn = document.getElementById('printBtn');
+
+let generatedPasswords = [];
+
+const randomFunc = {
+    lower: getRandomLower,
+    upper: getRandomUpper,
+    number: getRandomNumber,
+    symbol: getRandomSymbol
+};
+
+generateBtn.addEventListener('click', generatePasswords);
+printBtn.addEventListener('click', printPasswords);
+
+function generatePasswords() {
+    const quantity = +quantityEl.value;
+    generatedPasswords = [];
+    
+    for(let i = 0; i < quantity; i++) {
+        const password = generateSinglePassword();
+        generatedPasswords.push(password);
+    }
+    
+    // Atualizar display
+    passwordDisplay.innerHTML = generatedPasswords.join('<br>');
+    updatePrintPreview();
+}
+
+function generateSinglePassword() {
+    const length = +lengthEl.value;
+    const hasLower = lowercaseEl.checked;
+    const hasUpper = uppercaseEl.checked;
+    const hasNumber = numbersEl.checked;
+    const hasSymbol = symbolsEl.checked;
+    
+    return generatePasswordString(
+        hasLower, 
+        hasUpper, 
+        hasNumber, 
+        hasSymbol, 
+        length
+    );
+}
+
+function generatePasswordString(lower, upper, number, symbol, length) {
+    let generatedPassword = '';
+    const typesCount = lower + upper + number + symbol;
+    const typesArr = [{lower}, {upper}, {number}, {symbol}]
+        .filter(item => Object.values(item)[0]);
+    
+    if(typesCount === 0) {
+        return '';
+    }
+
+    for(let i = 0; i < length; i += typesCount) {
+        typesArr.forEach(type => {
+            const funcName = Object.keys(type)[0];
+            generatedPassword += randomFunc[funcName]();
+        });
+    }
+
+    const finalPassword = generatedPassword.slice(0, length);
+    return shufflePassword(finalPassword);
+}
+
+function shufflePassword(password) {
+    const array = password.split('');
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array.join('');
+}
+
+function getRandomLower() {
+    return String.fromCharCode(Math.floor(Math.random() * 26) + 97);
+}
+
+function getRandomUpper() {
+    return String.fromCharCode(Math.floor(Math.random() * 26) + 65);
+}
+
+function getRandomNumber() {
+    return String.fromCharCode(Math.floor(Math.random() * 10) + 48);
+}
+
+function getRandomSymbol() {
+    const symbols = '!@#$%^&*(){}[]=<>/,.';
+    return symbols[Math.floor(Math.random() * symbols.length)];
+}
+
+function updatePrintPreview() {
+    const date = new Date().toLocaleDateString();
+    const time = new Date().toLocaleTimeString();
+    
+    let preview = `
+        <div style="text-align: center; font-family: monospace;">
+            <h2>Senhas Geradas</h2>
+            <p>Data: ${date} - Hora: ${time}</p>
+            <hr>
+    `;
+    
+    generatedPasswords.forEach((password, index) => {
+        preview += `
+            <div style="margin: 20px 0; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
+                <p>Senha #${index + 1}:</p>
+                <h3>${password}</h3>
+            </div>
+        `;
+    });
+    
+    preview += `
+        <hr>
+        <p>Gerado por Sistema de Senhas</p>
+        </div>
+    `;
+    
+    printPreview.innerHTML = preview;
+    printPreview.style.display = 'block';
+}
+
+function printPasswords() {
+    // Verifica se existem senhas geradas
+    if (generatedPasswords.length === 0) {
+        alert('Por favor, gere algumas senhas primeiro!');
+        return;
+    }
+    
+    // Atualiza o preview antes de imprimir
+    updatePrintPreview();
+    
+    // Inicia a impressão
+    window.print();
+}
+
+// Gerar senha inicial
+generatePasswords();
+</script>
+
+<!-- Script para comunicação com impressora térmica via WebUSB -->
+<script>
+// Nota: Este é um exemplo básico de como seria a implementação com WebUSB
+// Para uma implementação real, você precisaria adaptar ao seu modelo específico de impressora
+
+async function connectThermalPrinter() {
+    try {
+        const device = await navigator.usb.requestDevice({
+            filters: [{ vendorId: 0x0416 }] // Exemplo de vendorId, deve ser ajustado para sua impressora
+        });
+        
+        await device.open();
+        await device.selectConfiguration(1);
+        await device.claimInterface(0);
+        
+        return device;
+    } catch (error) {
+        console.error('Erro ao conectar com a impressora:', error);
+        return null;
+    }
+}
+
+async function printToThermalPrinter(text) {
+    const device = await connectThermalPrinter();
+    if (!device) {
+        console.error('Não foi possível conectar à impressora');
+        return;
+    }
+
+    try {
+        // Converte o texto para um formato que a impressora entenda
+        const encoder = new TextEncoder();
+        const data = encoder.encode(text);
+        
+        // Envia os dados para a impressora
+        await device.transferOut(1, data);
+        
+        // Adiciona um comando de corte de papel (pode variar dependendo da impressora)
+        const cutCommand = new Uint8Array([0x1D, 0x56, 0x41, 0x00]);
+        await device.transferOut(1, cutCommand);
+        
+    } catch (error) {
+        console.error('Erro ao imprimir:', error);
+    } finally {
+        await device.close();
+    }
+}
+</script>
+</body>
+</html>
